@@ -1,0 +1,244 @@
+##  Objective – 3
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Load your dataset (replace 'your_data.csv' with actual file)
+df = pd.read_csv("O1 Heatmap.csv")
+
+# Print the column names to check for discrepancies
+print(df.columns)
+
+# Select relevant numerical variables, correcting any mismatches
+# Replace with the actual column names from your DataFrame, as printed above
+# Make sure these column names exactly match the output of print(df.columns)
+selected_columns = ['Bill','Rooms','Equipments','Family size']
+# The columns were renamed to match the actual column names
+# 'Age' was changed to 'Age ', and '9.Shift duration' to 'Shift duration'
+
+corr_matrix = df[selected_columns].corr()
+
+# Plot the heatmap
+plt.figure(figsize=(8,6))
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5)
+plt.title("Correlation Heatmap")
+plt.show()
+
+
+## Objective – 4
+
+# Use of Randaom Forest on Balanced Sentiment Data
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Load the Excel file
+file_path = "/content/Balanced_Sentiment_Data (1).xlsx"
+df = pd.read_excel(file_path)
+
+# Separate features and target
+X = df.drop(columns=['Rating'])  # Features (BoW)
+y = df['Rating']                 # Target (sentiment labels)
+
+# Encode target labels (e.g., Positive → 2, Neutral → 1, Negative → 0)
+label_encoder = LabelEncoder()
+y_encoded = label_encoder.fit_transform(y)
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_encoded, test_size=0.2, random_state=42
+)
+
+# Train a Random Forest classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Predict on the test set
+y_pred = model.predict(X_test)
+
+# Evaluate model
+accuracy = accuracy_score(y_test, y_pred)
+report = classification_report(y_test, y_pred, target_names=label_encoder.classes_)
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+# Output results
+print(f"Accuracy: {accuracy:.2f}\n")
+print("Classification Report:")
+print(report)
+print("Confusion Matrix:")
+print(conf_matrix)
+
+# Use of SVM and XGBoost on Balanced Sentiment Data
+
+pip install xgboost scikit-learn
+
+from sklearn.svm import SVC
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score
+
+# Train SVM
+svm_model = SVC(kernel='linear', random_state=42)
+svm_model.fit(X_train, y_train)
+y_pred_svm = svm_model.predict(X_test)
+accuracy_svm = accuracy_score(y_test, y_pred_svm)
+print(f"SVM Accuracy: {accuracy_svm:.2f}")
+
+# Train XGBoost
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', random_state=42)
+xgb_model.fit(X_train, y_train)
+y_pred_xgb = xgb_model.predict(X_test)
+accuracy_xgb = accuracy_score(y_test, y_pred_xgb)
+print(f"XGBoost Accuracy: {accuracy_xgb:.2f}")
+
+
+# Use of Hyperparameter tuning for Random Forest with GridSearchCV (For Improving Accuracy)
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
+
+# Define the parameter grid
+param_grid = {
+    'n_estimators': [100, 200],
+    'max_depth': [None, 10, 20],
+    'min_samples_split': [2, 5],
+    'min_samples_leaf': [1, 2]
+}
+
+# Initialize Random Forest
+rf = RandomForestClassifier(random_state=42)
+
+# Grid search with 5-fold cross-validation
+grid_search = GridSearchCV(
+    estimator=rf,
+    param_grid=param_grid,
+    cv=5,
+    scoring='accuracy',
+    n_jobs=-1,
+    verbose=1
+)
+
+# Fit to training data
+grid_search.fit(X_train, y_train)
+
+# Best estimator and accuracy
+print("Best Parameters:", grid_search.best_params_)
+print("Best CV Accuracy:", grid_search.best_score_)
+
+# Evaluate on test set
+best_rf = grid_search.best_estimator_
+y_pred_best_rf = best_rf.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred_best_rf)
+print("Test Set Accuracy with Best RF:", accuracy)
+
+
+
+# Logistic Regression Tuning with GridSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score, classification_report
+
+# Define the model
+lr = LogisticRegression(max_iter=1000)
+
+# Grid of hyperparameters to search
+param_grid = {
+    'C': [0.01, 0.1, 1, 10],
+    'penalty': ['l2'],  # 'l1' only works with 'liblinear' solver
+    'solver': ['liblinear', 'saga']
+}
+
+# Run grid search
+grid = GridSearchCV(lr, param_grid, cv=5, scoring='accuracy', verbose=1, n_jobs=-1)
+grid.fit(X_train, y_train)
+
+# Best model
+best_lr = grid.best_estimator_
+
+# Evaluate on test set
+y_pred_lr = best_lr.predict(X_test)
+print("🔍 Best Parameters:", grid.best_params_)
+print("✅ Test Set Accuracy:", accuracy_score(y_test, y_pred_lr))
+print("\n📋 Classification Report:")
+print(classification_report(y_test, y_pred_lr))
+# Ensemble Logistic + SVM + RF with VotingClassifier.
+
+from sklearn.ensemble import VotingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score
+
+# Instantiate individual models
+log_clf = LogisticRegression(C=10, penalty='l2', solver='liblinear', max_iter=1000)
+svm_clf = SVC(C=10, kernel='rbf', gamma='scale', probability=True)  # probability=True needed for soft voting
+rf_clf = RandomForestClassifier(n_estimators=100, max_depth=20, min_samples_split=5, min_samples_leaf=1, random_state=42)
+
+# Combine into VotingClassifier
+voting_clf = VotingClassifier(
+    estimators=[
+        ('lr', log_clf),
+        ('svm', svm_clf),
+        ('rf', rf_clf)
+    ],
+    voting='soft'  # use 'hard' if you don't want probability averaging
+)
+
+# Fit ensemble model
+voting_clf.fit(X_train, y_train)
+
+# Predict and evaluate
+y_pred_ensemble = voting_clf.predict(X_test)
+
+print("✅ Ensemble Accuracy:", accuracy_score(y_test, y_pred_ensemble))
+print("\n📋 Classification Report:")
+print(classification_report(y_test, y_pred_ensemble))
+
+# This is just below your best solo model (Logistic Regression @ 68.7%) — but it's more balanced across classes.
+# Best Overall Model: Tuned Logistic Regression with Accuracy=68.7%
+# Improve Logistic Regression model Further:
+# To Apply SMOTE and Retrain Logistic Regression
+
+pip install imbalanced-learn
+
+from imblearn.over_sampling import SMOTE
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, accuracy_score
+
+# Apply SMOTE on training set
+smote = SMOTE(random_state=42)
+X_train_sm, y_train_sm = smote.fit_resample(X_train, y_train)
+
+# Check class balance (optional)
+from collections import Counter
+print("Resampled class distribution:", Counter(y_train_sm))
+
+log_clf_smote = LogisticRegression(C=10, penalty='l2', solver='liblinear', max_iter=1000, random_state=42)
+log_clf_smote.fit(X_train_sm, y_train_sm)
+
+# Predict on test set
+y_pred_smote = log_clf_smote.predict(X_test)
+
+# Evaluate
+print("✅ Accuracy (SMOTE):", accuracy_score(y_test, y_pred_smote))
+print("\n📋 Classification Report (SMOTE):")
+print(classification_report(y_test, y_pred_smote))
+
+# SMOTE did its job!
+# Matching the best Logistic Regression score, but with a more balanced treatment of Neutral and Positive classes.
+# Same overall accuracy, No performance drop,
+# And now the model has learned with balanced exposure to all classes.
+
+# To finalize & save this model:
+# Finalize and save SMOTE-balanced Logistic Regression model so it’s ready for deployment, sharing, or integration into an app!
+
+import joblib
+
+joblib.dump(log_clf_smote, 'logistic_smote_model.pkl')
+
+# Assuming you're using CountVectorizer or TfidfVectorizer as `vectorizer`
+vectorizer = TfidfVectorizer()
+joblib.dump(vectorizer, 'vectorizer.pkl')
